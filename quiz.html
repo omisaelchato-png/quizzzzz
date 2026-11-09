@@ -1,0 +1,757 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz Tremembé - Tablet</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #151515;
+    color: white;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.container {
+    background: #222;
+    width: 100%;
+    max-width: 750px;
+    padding: 30px;
+    border-radius: 18px;
+    border: 1px solid #444;
+    text-align: center;
+    box-shadow: 0 10px 40px #0008;
+}
+
+/* IMAGEM DA PÁGINA INICIAL */
+.banner {
+    display: block;
+    width: 100%;
+    height: 300px;
+    object-fit: cover;
+    object-position: center;
+    border-radius: 12px;
+    margin-bottom: 25px;
+}
+
+.tag {
+    color: #c5a16a;
+    font-size: 12px;
+    letter-spacing: 3px;
+}
+
+h1 {
+    font-size: 38px;
+    margin-bottom: 10px;
+}
+
+h2 {
+    color: #d6b47e;
+}
+
+p {
+    color: #ccc;
+    line-height: 1.6;
+}
+
+button {
+    background: #b58a50;
+    color: white;
+    border: none;
+    padding: 15px 22px;
+    width: 100%;
+    border-radius: 9px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 12px;
+    transition: .2s;
+}
+
+button:hover {
+    background: #d0a568;
+    transform: translateY(-2px);
+}
+
+button:disabled {
+    cursor: default;
+    opacity: 1;
+}
+
+.option {
+    background: #333;
+    border: 1px solid #555;
+    text-align: left;
+}
+
+.option:hover:not(:disabled) {
+    background: #454545;
+}
+
+.option.correct {
+    background: #245c38;
+}
+
+.option.wrong {
+    background: #782e2e;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.progress {
+    background: #444;
+    height: 8px;
+    border-radius: 20px;
+    margin: 20px 0;
+    overflow: hidden;
+}
+
+.progress-bar {
+    background: #c5a16a;
+    height: 100%;
+    width: 0%;
+    transition: .3s;
+}
+
+.question-number {
+    color: #c5a16a;
+    font-size: 14px;
+}
+
+#feedback {
+    margin-top: 15px;
+    font-weight: bold;
+}
+
+.review-item {
+    background: #333;
+    border-radius: 10px;
+    padding: 15px;
+    text-align: left;
+    margin: 12px 0;
+}
+
+.review-item p {
+    margin-bottom: 5px;
+}
+
+@media(max-width: 500px) {
+    .container {
+        padding: 18px;
+    }
+
+    h1 {
+        font-size: 30px;
+    }
+
+    .banner {
+        height: 190px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- PÁGINA INICIAL -->
+    <section id="home">
+
+        <img
+            src="tremembe-3-1920x1080.jpg"
+            alt="Tremembé - A prisão dos famosos"
+            class="banner"
+        >
+
+        <span class="tag">O DESAFIO COMEÇA AGORA</span>
+
+        <h1>Quiz Tremembé</h1>
+
+        <h2>Você conhece a série e os casos?</h2>
+
+        <p>Atenção: conteúdo sobre crimes reais.</p>
+
+        <p>
+        Cada rodada sorteia um personagem diferente
+        da série. Responda às perguntas sobre ele,
+        o caso retratado e o ator ou atriz que o interpreta.
+        </p>
+
+        <p>
+        Quiz independente, sem vínculo oficial
+        com a série ou seus produtores.
+        </p>
+
+        <label for="playerName" style="display:block;text-align:left;margin:20px 0 8px;color:#d6b47e;font-weight:bold">Digite seu nome:</label>
+        <input id="playerName" maxlength="24" autocomplete="off" placeholder="Seu nome" style="width:100%;padding:14px;border-radius:9px;border:1px solid #666;background:#333;color:white;font-size:16px">
+        <p id="nameError" style="color:#ff9b9b;min-height:20px"></p>
+        <button onclick="beginWithName()">Começar o quiz</button>
+
+    </section>
+
+    <!-- TELA DO QUIZ -->
+    <section id="game" class="hidden">
+
+        <span class="tag">QUIZ TREMEMBÉ</span>
+        <p id="playerLabel"></p>
+
+        <h2 id="character"></h2>
+
+        <div class="progress">
+            <div class="progress-bar" id="progress"></div>
+        </div>
+
+        <p class="question-number" id="number"></p>
+
+        <h2 id="question"></h2>
+
+        <div id="options"></div>
+
+        <p id="feedback"></p>
+
+        <button id="next" class="hidden"
+        onclick="nextQuestion()">
+            Próxima pergunta
+        </button>
+
+    </section>
+
+    <!-- RESULTADO -->
+    <section id="result" class="hidden">
+
+        <span class="tag">FIM DO DESAFIO</span>
+
+        <h1>Seu resultado</h1>
+
+        <h2 id="score"></h2>
+
+        <p id="message"></p>
+        <p id="saveStatus">Enviando pontuação para o ranking...</p>
+
+        <button onclick="showReview()">
+            Ver respostas
+        </button>
+
+        <button onclick="returnHome()">Próximo visitante</button>
+
+    </section>
+
+    <!-- GABARITO -->
+    <section id="review" class="hidden">
+
+        <span class="tag">REVISÃO</span>
+
+        <h1>Gabarito</h1>
+
+        <div id="review-list"></div>
+
+        <button onclick="returnHome()">Próximo visitante</button>
+
+    </section>
+
+</div>
+
+<script>
+
+// CONFIGURE AQUI OS DADOS DO SEU PROJETO FIREBASE (Realtime Database).
+// O mesmo bloco de configuração deve ser usado no arquivo painel.html.
+const firebaseConfig = {
+  apiKey: "AIzaSyACr2jb391Bqy9YLuJHrKVNiMzGF7UfFe8",
+  authDomain: "feira-tecnica-771f6.firebaseapp.com",
+  projectId: "feira-tecnica-771f6",
+  storageBucket: "feira-tecnica-771f6.firebasestorage.app",
+  messagingSenderId: "7912334568",
+  appId: "1:7912334568:web:70778a0f4dc722a79c155d",
+  measurementId: "G-QZP2G6NX12"
+};
+
+let database = null;
+let playerName = "";
+let scoreSent = false;
+try {
+  if (firebaseConfig.apiKey !== "COLE_SUA_API_KEY") {
+    firebase.initializeApp(firebaseConfig);
+    database = firebase.database();
+  }
+} catch (error) {
+  console.error("Erro ao conectar ao Firebase:", error);
+}
+
+function beginWithName() {
+  const field = document.getElementById("playerName");
+  const name = field.value.trim().replace(/\s+/g, " ");
+  if (!name) {
+    document.getElementById("nameError").innerText = "Digite seu nome para começar.";
+    field.focus();
+    return;
+  }
+  if (name.length < 2) {
+    document.getElementById("nameError").innerText = "Digite pelo menos 2 caracteres.";
+    field.focus();
+    return;
+  }
+  if (!database) {
+    document.getElementById("nameError").innerText = "O ranking ainda não foi configurado. Peça ao organizador para configurar o Firebase.";
+    return;
+  }
+  playerName = name.slice(0, 24);
+  scoreSent = false;
+  document.getElementById("nameError").innerText = "";
+  startQuiz();
+}
+
+function returnHome() {
+  document.getElementById("result").classList.add("hidden");
+  document.getElementById("review").classList.add("hidden");
+  document.getElementById("game").classList.add("hidden");
+  document.getElementById("home").classList.remove("hidden");
+  document.getElementById("playerName").value = "";
+  document.getElementById("playerName").focus();
+  playerName = "";
+}
+
+async function sendScoreToRanking() {
+  if (scoreSent) return;
+  scoreSent = true;
+  const status = document.getElementById("saveStatus");
+  status.innerText = "Enviando pontuação para o ranking...";
+  try {
+    await database.ref("ranking").push({
+      name: playerName,
+      points: points,
+      total: questions.length,
+      finishedAt: firebase.database.ServerValue.TIMESTAMP
+    });
+    status.innerText = "Pontuação registrada no ranking!";
+  } catch (error) {
+    console.error(error);
+    scoreSent = false;
+    status.innerText = "Não foi possível enviar. Verifique a conexão com a internet.";
+  }
+}
+
+const characters = [
+
+{
+ name:"Suzane von Richthofen",
+ actor:"Marina Ruy Barbosa",
+ case:"Assassinato de Manfred e Marísia von Richthofen, seus pais.",
+ relation:"Daniel Cravinhos",
+ questions:[
+  ["Quem interpreta Suzane na série?",["Marina Ruy Barbosa","Bianca Comparato","Carol Garcia","Letícia Rodrigues"],0],
+  ["Quem eram as vítimas do caso de Suzane?",["Seus pais","Seus irmãos","Seus vizinhos","Seus avós"],0],
+  ["Qual personagem era namorado de Suzane?",["Daniel Cravinhos","Roger Abdelmassih","Alexandre Nardoni","Christian Cravinhos"],0]
+ ]
+},
+
+{
+ name:"Elize Matsunaga",
+ actor:"Carol Garcia",
+ case:"Assassinato de seu marido, Marcos Matsunaga.",
+ relation:"Sandrão",
+ questions:[
+  ["Quem interpreta Elize Matsunaga?",["Carol Garcia","Marina Ruy Barbosa","Bianca Comparato","Letícia Rodrigues"],0],
+  ["Qual era o nome do marido de Elize?",["Marcos Matsunaga","Manfred Richthofen","Daniel Cravinhos","Roger Abdelmassih"],0],
+  ["Qual personagem teve um relacionamento com Elize na prisão?",["Sandrão","Anna Carolina","Suzane","Celina"],0]
+ ]
+},
+
+{
+ name:"Sandrão",
+ actor:"Letícia Rodrigues",
+ case:"História de Sandra Regina Ruiz, retratada na ala feminina de Tremembé.",
+ relation:"Suzane e Elize",
+ questions:[
+  ["Quem interpreta Sandrão?",["Letícia Rodrigues","Carol Garcia","Bianca Comparato","Marina Ruy Barbosa"],0],
+  ["Qual é o nome associado ao apelido Sandrão?",["Sandra Regina Ruiz","Suzane von Richthofen","Elize Matsunaga","Anna Carolina Jatobá"],0],
+  ["Com quais personagens Sandrão teve relacionamentos retratados na série?",["Suzane e Elize","Anna e Suzane","Elize e Celina","Suzane e Sandrão"],0]
+ ]
+},
+
+{
+ name:"Daniel Cravinhos",
+ actor:"Felipe Simas",
+ case:"Condenado pelo assassinato dos pais de Suzane von Richthofen.",
+ relation:"Christian Cravinhos",
+ questions:[
+  ["Quem interpreta Daniel Cravinhos?",["Felipe Simas","Kelner Macêdo","Lucas Oradovschi","Anselmo Vasconcelos"],0],
+  ["Qual era a relação de Daniel com Suzane?",["Namorado","Irmão","Pai","Advogado"],0],
+  ["Quem é Christian Cravinhos?",["Irmão de Daniel","Pai de Daniel","Primo de Suzane","Irmão de Alexandre"],0]
+ ]
+},
+
+{
+ name:"Christian Cravinhos",
+ actor:"Kelner Macêdo",
+ case:"Condenado por participação no assassinato dos pais de Suzane.",
+ relation:"Daniel Cravinhos",
+ questions:[
+  ["Quem interpreta Christian Cravinhos?",["Kelner Macêdo","Felipe Simas","Anselmo Vasconcelos","Lucas Oradovschi"],0],
+  ["Qual é a relação de Christian com Daniel?",["Irmãos","Primos","Pai e filho","Amigos de infância"],0],
+  ["Em qual caso Christian esteve envolvido?",["Caso von Richthofen","Caso Isabella Nardoni","Caso Matsunaga","Caso Abdelmassih"],0]
+ ]
+},
+
+{
+ name:"Anna Carolina Jatobá",
+ actor:"Bianca Comparato",
+ case:"Condenada pelo assassinato de Isabella Nardoni, sua enteada.",
+ relation:"Alexandre Nardoni",
+ questions:[
+  ["Quem interpreta Anna Carolina Jatobá?",["Bianca Comparato","Carol Garcia","Letícia Rodrigues","Marina Ruy Barbosa"],0],
+  ["Qual era a relação de Anna com Isabella?",["Madrasta","Mãe biológica","Irmã","Tia"],0],
+  ["Quem também foi condenado no caso Isabella Nardoni?",["Alexandre Nardoni","Daniel Cravinhos","Christian Cravinhos","Roger Abdelmassih"],0]
+ ]
+},
+
+{
+ name:"Alexandre Nardoni",
+ actor:"Lucas Oradovschi",
+ case:"Condenado pelo assassinato de sua filha Isabella Nardoni.",
+ relation:"Anna Carolina Jatobá",
+ questions:[
+  ["Quem interpreta Alexandre Nardoni?",["Lucas Oradovschi","Felipe Simas","Kelner Macêdo","Anselmo Vasconcelos"],0],
+  ["Qual era a relação de Alexandre com Isabella?",["Pai","Avô","Tio","Irmão"],0],
+  ["Qual personagem foi condenada junto com Alexandre no caso Isabella?",["Anna Carolina Jatobá","Elize Matsunaga","Suzane von Richthofen","Sandrão"],0]
+ ]
+},
+
+{
+ name:"Roger Abdelmassih",
+ actor:"Anselmo Vasconcelos",
+ case:"Ex-médico condenado por crimes sexuais contra pacientes.",
+ relation:"Ala masculina de Tremembé",
+ questions:[
+  ["Quem interpreta Roger Abdelmassih?",["Anselmo Vasconcelos","Lucas Oradovschi","Felipe Simas","Kelner Macêdo"],0],
+  ["Qual era a profissão de Roger?",["Médico","Advogado","Jornalista","Policial"],0],
+  ["Por quais crimes Roger foi condenado?",["Crimes sexuais contra pacientes","Fraude bancária","Roubo de veículos","Tráfico de animais"],0]
+ ]
+}
+
+];
+
+// PERGUNTAS GERAIS
+
+const generalQuestions = [
+
+{
+ question:"Em qual plataforma a série Tremembé foi lançada?",
+ options:["Prime Video","Netflix","Globoplay","Disney+"],
+ answer:0
+},
+
+{
+ question:"Em qual estado brasileiro fica Tremembé?",
+ options:["São Paulo","Rio de Janeiro","Minas Gerais","Paraná"],
+ answer:0
+},
+
+{
+ question:"Qual é o apelido popular associado ao presídio retratado?",
+ options:["Presídio dos famosos","Casa dos artistas","Prisão imperial","Presídio central"],
+ answer:0
+},
+
+{
+ question:"Quem escreveu os livros que inspiraram a produção?",
+ options:["Ullisses Campbell","Paulo Coelho","Raphael Montes","Augusto Cury"],
+ answer:0
+},
+
+{
+ question:"Qual atriz interpreta Suzane von Richthofen?",
+ options:["Marina Ruy Barbosa","Carol Garcia","Bianca Comparato","Letícia Rodrigues"],
+ answer:0
+},
+
+{
+ question:"Qual atriz interpreta Elize Matsunaga?",
+ options:["Carol Garcia","Marina Ruy Barbosa","Bianca Comparato","Letícia Rodrigues"],
+ answer:0
+},
+
+{
+ question:"Qual atriz interpreta Anna Carolina Jatobá?",
+ options:["Bianca Comparato","Carol Garcia","Marina Ruy Barbosa","Letícia Rodrigues"],
+ answer:0
+}
+
+];
+
+let currentCharacter;
+let questions = [];
+let currentQuestion = 0;
+let points = 0;
+let answers = [];
+let locked = false;
+
+// EMBARALHAR
+
+function shuffle(array) {
+    const result = [...array];
+
+    for (let i = result.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [result[i], result[j]] = [result[j], result[i]];
+    }
+
+    return result;
+}
+
+// INICIAR QUIZ
+
+function startQuiz() {
+
+    currentCharacter = characters[
+        Math.floor(Math.random() * characters.length)
+    ];
+
+    const specific = currentCharacter.questions.map(q => ({
+        question:q[0],
+        options:q[1],
+        answer:q[2]
+    }));
+
+    questions = [
+        ...specific,
+        ...shuffle(generalQuestions).slice(0,7)
+    ];
+
+    questions = questions.map(q => {
+
+        const options = shuffle(
+            q.options.map((option,index) => ({
+                text:option,
+                correct:index === q.answer
+            }))
+        );
+
+        return {
+            question:q.question,
+            options:options.map(o => o.text),
+            answer:options.findIndex(o => o.correct)
+        };
+
+    });
+
+    currentQuestion = 0;
+    points = 0;
+    answers = [];
+
+    document.getElementById("home").classList.add("hidden");
+    document.getElementById("result").classList.add("hidden");
+    document.getElementById("review").classList.add("hidden");
+    document.getElementById("game").classList.remove("hidden");
+    document.getElementById("playerLabel").innerText = "Participante: " + playerName;
+
+    document.getElementById("character").innerText =
+        "Personagem sorteado: " + currentCharacter.name;
+
+    showQuestion();
+}
+
+// MOSTRAR PERGUNTA
+
+function showQuestion() {
+
+    locked = false;
+
+    const q = questions[currentQuestion];
+
+    document.getElementById("number").innerText =
+        `Pergunta ${currentQuestion + 1} de ${questions.length}`;
+
+    document.getElementById("question").innerText = q.question;
+
+    document.getElementById("progress").style.width =
+        (currentQuestion / questions.length * 100) + "%";
+
+    document.getElementById("feedback").innerText = "";
+
+    document.getElementById("next").classList.add("hidden");
+
+    const options = document.getElementById("options");
+
+    options.innerHTML = "";
+
+    q.options.forEach((option,index) => {
+
+        const button = document.createElement("button");
+
+        button.innerText = option;
+        button.className = "option";
+
+        button.onclick = () => checkAnswer(index,button);
+
+        options.appendChild(button);
+
+    });
+
+}
+
+// VERIFICAR RESPOSTA
+
+function checkAnswer(selected,button) {
+
+    if (locked) return;
+
+    locked = true;
+
+    const q = questions[currentQuestion];
+
+    const buttons = document.querySelectorAll(".option");
+
+    buttons.forEach((b,index) => {
+
+        b.disabled = true;
+
+        if(index === q.answer) {
+            b.classList.add("correct");
+        }
+
+    });
+
+    if(selected === q.answer) {
+
+        points++;
+
+        document.getElementById("feedback").innerText =
+            "Muito bem! Você acertou!";
+
+    } else {
+
+        button.classList.add("wrong");
+
+        document.getElementById("feedback").innerText =
+            "Resposta incorreta!";
+
+    }
+
+    answers.push({
+
+        question:q.question,
+        selected:q.options[selected],
+        correct:q.options[q.answer]
+
+    });
+
+    document.getElementById("next").classList.remove("hidden");
+
+}
+
+// PRÓXIMA PERGUNTA
+
+function nextQuestion() {
+
+    currentQuestion++;
+
+    if(currentQuestion < questions.length) {
+
+        showQuestion();
+
+    } else {
+
+        finishQuiz();
+
+    }
+
+}
+
+// FINALIZAR QUIZ
+
+function finishQuiz() {
+
+    document.getElementById("game").classList.add("hidden");
+
+    document.getElementById("result").classList.remove("hidden");
+
+    document.getElementById("progress").style.width = "100%";
+
+    document.getElementById("score").innerText =
+        points + "/" + questions.length;
+
+    const percent = points / questions.length;
+
+    let message;
+
+    if(percent === 1) {
+
+        message = "Perfeito! Você é especialista em Tremembé!";
+
+    } else if(percent >= 0.7) {
+
+        message = "Muito bem! Você conhece bastante a série!";
+
+    } else if(percent >= 0.4) {
+
+        message = "Bom trabalho! Continue tentando!";
+
+    } else {
+
+        message = "Que tal tentar novamente?";
+
+    }
+
+    document.getElementById("message").innerText = message;
+    sendScoreToRanking();
+
+}
+
+// MOSTRAR GABARITO
+
+function showReview() {
+
+    document.getElementById("result").classList.add("hidden");
+
+    document.getElementById("review").classList.remove("hidden");
+
+    const list = document.getElementById("review-list");
+
+    list.innerHTML = "";
+
+    answers.forEach((item,index) => {
+
+        const div = document.createElement("div");
+
+        div.className = "review-item";
+
+        const title = document.createElement("strong");
+
+        title.innerText = `${index + 1}. ${item.question}`;
+
+        const selected = document.createElement("p");
+
+        selected.innerText = "Sua resposta: " + item.selected;
+
+        const correct = document.createElement("p");
+
+        correct.innerText = "Resposta correta: " + item.correct;
+
+        div.append(title,selected,correct);
+
+        list.appendChild(div);
+
+    });
+
+}
+
+</script>
+
+</body>
+</html>
